@@ -66,7 +66,11 @@ class EqualWeightPortfolio:
         """
         TODO: Complete Task 1 Below
         """
-
+        # Equal Weighting Strategy
+        assets = df.columns[df.columns != self.exclude]
+        equal_weight = 1 / len(assets)
+        for date in self.portfolio_weights.index:
+            self.portfolio_weights.loc[date, assets] = equal_weight
         """
         TODO: Complete Task 1 Above
         """
@@ -113,11 +117,18 @@ class RiskParityPortfolio:
 
         # Calculate the portfolio weights
         self.portfolio_weights = pd.DataFrame(index=df.index, columns=df.columns)
-
         """
         TODO: Complete Task 2 Below
         """
-
+        for i in range(self.lookback, len(df)):
+            # Compute the rolling window volatility for each asset
+            rolling_vol = df[assets].iloc[i-self.lookback:i].std()
+            # Compute the inverse volatility weights
+            inv_vol_weights = 1 / rolling_vol
+            # Normalize the weights so they sum to 1
+            normalized_weights = inv_vol_weights / inv_vol_weights.sum()
+            # Assign the weights to the current date in the portfolio_weights dataframe
+            self.portfolio_weights.loc[df.index[i], assets] = normalized_weights
         """
         TODO: Complete Task 2 Above
         """
@@ -190,10 +201,15 @@ class MeanVariancePortfolio:
                 TODO: Complete Task 3 Below
                 """
 
-                # Sample Code: Initialize Decision w and the Objective
-                # NOTE: You can modify the following code
-                w = model.addMVar(n, name="w", ub=1)
-                model.setObjective(w.sum(), gp.GRB.MAXIMIZE)
+                # Add decision variable for portfolio weights
+                w = model.addMVar(n, name="w", lb=0, ub=1)
+
+                # Set the objective function
+                objective = mu @ w - (gamma / 2) * (w @ Sigma @ w)
+                model.setObjective(objective, gp.GRB.MAXIMIZE)
+
+                # Add the constraint that weights sum to 1
+                model.addConstr(w.sum() == 1, name="weights_sum")
 
                 """
                 TODO: Complete Task 3 Below

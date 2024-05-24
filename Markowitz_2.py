@@ -49,7 +49,6 @@ Strategy Creation
 Create your own strategy, you can add parameter but please remain "price" and "exclude" unchanged
 """
 
-
 class MyPortfolio:
     """
     NOTE: You can modify the initialization function
@@ -74,6 +73,36 @@ class MyPortfolio:
         """
         TODO: Complete Task 4 Below
         """
+        for i in range(self.lookback, len(self.price)):
+            # Select the lookback window of returns
+            R_n = self.returns[assets].iloc[i-self.lookback:i]
+            
+            # Calculate mean returns and covariance matrix
+            mu = R_n.mean().values
+            Sigma = R_n.cov().values
+            n = len(assets)
+            
+            # Optimization using Gurobi
+            with gp.Env(empty=True) as env:
+                env.setParam("OutputFlag", 0)
+                env.setParam("DualReductions", 0)
+                env.start()
+                with gp.Model(env=env, name="portfolio") as model:
+                    # Add decision variable for portfolio weights
+                    w = model.addMVar(n, name="w", lb=0, ub=1)
+                    # Set the objective function
+                    objective = mu @ w - (self.gamma / 2) * (w @ Sigma @ w)
+                    model.setObjective(objective, gp.GRB.MAXIMIZE)
+                    # Add the constraint that weights sum to 1
+                    model.addConstr(w.sum() == 1, name="weights_sum")
+                    model.optimize()
+                    
+                    if model.status == gp.GRB.OPTIMAL or model.status == gp.GRB.SUBOPTIMAL:
+                        weights = w.x
+                    else:
+                        weights = np.zeros(n)
+
+            self.portfolio_weights.loc[self.price.index[i], assets] = weights
 
         """
         TODO: Complete Task 4 Above
@@ -102,7 +131,6 @@ class MyPortfolio:
             self.calculate_portfolio_returns()
 
         return self.portfolio_weights, self.portfolio_returns
-
 
 """
 Assignment Judge
